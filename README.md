@@ -46,16 +46,22 @@ JavaScript (Vanilla)
 
 _**Project Structure**_
 
+
 LUMINA-Image-Gallery/
+
 │
+
 ├── index.html      # Main gallery file
+
 ├── README.md       # Project documentation
+
 └── LICENSE         # License file
 
 _**Purpose**_
 
 This project is designed to demonstrate:
-  Strong frontend development skills, Clean UI/UX design principles, Advanced JavaScript interactivity, Responsive and accessible layouts
+  Strong frontend development skills, Clean UI/UX design principles, Advanced JavaScript interactivity, Responsive and accessible layouts.
+  
 It can be used as:
   -A portfolio project
   -A base for photography websites
@@ -67,8 +73,10 @@ _**License**_
 This project is licensed under the MIT License.
 
 _**Author**_
+
 Komal
 GitHub: https://github.com/komalv6
 
 **Support**
+
 If you like this project, consider giving it a star on GitHub.
