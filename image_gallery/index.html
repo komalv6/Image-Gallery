@@ -1,0 +1,967 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LUMINA — Image Gallery</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300&family=Courier+Prime:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0a0a08;
+    --surface: #111110;
+    --border: #2a2a26;
+    --accent: #c8a96e;
+    --accent2: #7eb8a0;
+    --text: #e8e4dc;
+    --muted: #6a6a60;
+    --white: #f5f2ec;
+    --transition: cubic-bezier(0.65, 0, 0.35, 1);
+  }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Courier Prime', monospace;
+    min-height: 100vh;
+    overflow-x: hidden;
+    cursor: none;
+  }
+
+  /* Custom cursor */
+  .cursor {
+    width: 8px; height: 8px;
+    background: var(--accent);
+    border-radius: 50%;
+    position: fixed;
+    pointer-events: none;
+    z-index: 9999;
+    transform: translate(-50%, -50%);
+    transition: width 0.2s, height 0.2s, background 0.2s;
+  }
+  .cursor-ring {
+    width: 36px; height: 36px;
+    border: 1px solid rgba(200,169,110,0.5);
+    border-radius: 50%;
+    position: fixed;
+    pointer-events: none;
+    z-index: 9998;
+    transform: translate(-50%, -50%);
+    transition: transform 0.12s var(--transition), width 0.3s, height 0.3s, border-color 0.3s;
+  }
+  .cursor.hover { width: 14px; height: 14px; background: var(--white); }
+  .cursor-ring.hover { width: 54px; height: 54px; border-color: rgba(245,242,236,0.6); }
+
+  /* Header */
+  header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    padding: 2.5rem 3rem 2rem;
+    border-bottom: 1px solid var(--border);
+    position: sticky; top: 0;
+    background: var(--bg);
+    z-index: 100;
+    backdrop-filter: blur(10px);
+  }
+
+  .logo {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 2.4rem;
+    font-weight: 300;
+    letter-spacing: 0.3em;
+    color: var(--white);
+    line-height: 1;
+  }
+  .logo span { color: var(--accent); font-style: italic; }
+
+  .header-meta {
+    font-size: 0.65rem;
+    letter-spacing: 0.2em;
+    color: var(--muted);
+    text-transform: uppercase;
+    text-align: right;
+    line-height: 1.8;
+  }
+
+  /* Filter bar */
+  .filter-bar {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    padding: 1.5rem 3rem;
+    border-bottom: 1px solid var(--border);
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .filter-bar::-webkit-scrollbar { display: none; }
+
+  .filter-label {
+    font-size: 0.6rem;
+    letter-spacing: 0.25em;
+    color: var(--muted);
+    text-transform: uppercase;
+    margin-right: 2rem;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  .filter-btn {
+    background: none;
+    border: none;
+    color: var(--muted);
+    font-family: 'Courier Prime', monospace;
+    font-size: 0.7rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    padding: 0.5rem 1.4rem;
+    cursor: none;
+    position: relative;
+    white-space: nowrap;
+    transition: color 0.3s;
+    flex-shrink: 0;
+  }
+  .filter-btn::after {
+    content: '';
+    position: absolute;
+    bottom: 0; left: 1.4rem; right: 1.4rem;
+    height: 1px;
+    background: var(--accent);
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform 0.4s var(--transition);
+  }
+  .filter-btn:hover, .filter-btn.active { color: var(--white); }
+  .filter-btn.active::after, .filter-btn:hover::after { transform: scaleX(1); }
+  .filter-btn.active { color: var(--accent); }
+
+  /* Gallery grid */
+  .gallery-wrap {
+    padding: 3rem;
+  }
+
+  .gallery-stats {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+  }
+
+  .count-text {
+    font-size: 0.62rem;
+    letter-spacing: 0.2em;
+    color: var(--muted);
+    text-transform: uppercase;
+  }
+
+  .view-toggle {
+    display: flex;
+    gap: 0.5rem;
+  }
+  .view-btn {
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    width: 32px; height: 32px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: none;
+    transition: all 0.3s;
+    font-size: 0.7rem;
+  }
+  .view-btn.active, .view-btn:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  .gallery-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 3px;
+    transition: all 0.5s var(--transition);
+  }
+  .gallery-grid.list-view {
+    grid-template-columns: 1fr;
+    gap: 1px;
+  }
+
+  /* Gallery item */
+  .gallery-item {
+    position: relative;
+    overflow: hidden;
+    aspect-ratio: 3/4;
+    background: var(--surface);
+    cursor: none;
+  }
+  .gallery-grid.list-view .gallery-item {
+    aspect-ratio: 16/5;
+  }
+
+  .gallery-item.hidden {
+    display: none;
+  }
+
+  .gallery-item img {
+    width: 100%; height: 100%;
+    object-fit: cover;
+    display: block;
+    transition: transform 0.8s var(--transition), filter 0.5s;
+    filter: saturate(0.7) brightness(0.9);
+  }
+  .gallery-item:hover img {
+    transform: scale(1.06);
+    filter: saturate(1) brightness(1);
+  }
+
+  .item-overlay {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(to top, rgba(10,10,8,0.85) 0%, transparent 50%);
+    opacity: 0;
+    transition: opacity 0.4s var(--transition);
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    padding: 1.5rem;
+  }
+  .gallery-item:hover .item-overlay { opacity: 1; }
+
+  .item-title {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 1.1rem;
+    font-weight: 300;
+    color: var(--white);
+    letter-spacing: 0.05em;
+    margin-bottom: 0.3rem;
+    transform: translateY(8px);
+    transition: transform 0.4s var(--transition);
+  }
+  .gallery-item:hover .item-title { transform: translateY(0); }
+
+  .item-meta {
+    font-size: 0.58rem;
+    letter-spacing: 0.2em;
+    color: var(--accent);
+    text-transform: uppercase;
+    transform: translateY(8px);
+    transition: transform 0.4s 0.05s var(--transition);
+  }
+  .gallery-item:hover .item-meta { transform: translateY(0); }
+
+  .item-num {
+    position: absolute;
+    top: 1rem; right: 1rem;
+    font-size: 0.58rem;
+    letter-spacing: 0.15em;
+    color: rgba(232,228,220,0.4);
+    background: rgba(10,10,8,0.5);
+    padding: 0.3rem 0.6rem;
+    backdrop-filter: blur(4px);
+  }
+
+  .item-category-tag {
+    position: absolute;
+    top: 1rem; left: 1rem;
+    font-size: 0.55rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    padding: 0.3rem 0.7rem;
+    background: rgba(10,10,8,0.7);
+    backdrop-filter: blur(4px);
+    border-left: 2px solid var(--accent);
+    color: var(--text);
+    opacity: 0;
+    transform: translateX(-8px);
+    transition: opacity 0.3s, transform 0.3s;
+  }
+  .gallery-item:hover .item-category-tag { opacity: 1; transform: translateX(0); }
+
+  /* Featured / spanning items */
+  .gallery-item.featured {
+    grid-column: span 2;
+    grid-row: span 2;
+    aspect-ratio: auto;
+  }
+
+  /* Filter animation */
+  .gallery-item {
+    animation: fadeIn 0.5s var(--transition) both;
+  }
+  @keyframes fadeIn {
+    from { opacity: 0; transform: scale(0.97); }
+    to { opacity: 1; transform: scale(1); }
+  }
+
+  /* Lightbox */
+  .lightbox {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.4s var(--transition);
+  }
+  .lightbox.open { opacity: 1; pointer-events: all; }
+
+  .lb-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(5, 5, 4, 0.96);
+    backdrop-filter: blur(20px);
+  }
+
+  .lb-content {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    gap: 0;
+    max-width: 1400px;
+    width: 100%;
+    padding: 5rem 4rem;
+    transform: scale(0.96);
+    transition: transform 0.4s var(--transition);
+  }
+  .lightbox.open .lb-content { transform: scale(1); }
+
+  .lb-main {
+    flex: 1;
+    position: relative;
+    max-height: 80vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .lb-img-wrap {
+    position: relative;
+    max-height: 78vh;
+    overflow: hidden;
+  }
+
+  .lb-img-wrap img {
+    max-height: 78vh;
+    max-width: 100%;
+    object-fit: contain;
+    display: block;
+    transition: opacity 0.3s, transform 0.4s var(--transition);
+    filter: var(--active-filter, none);
+  }
+
+  .lb-side {
+    width: 280px;
+    flex-shrink: 0;
+    padding-left: 3rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 2rem;
+  }
+
+  .lb-index {
+    font-size: 4rem;
+    font-family: 'Cormorant Garamond', serif;
+    font-weight: 300;
+    color: var(--border);
+    line-height: 1;
+    letter-spacing: -0.02em;
+  }
+  .lb-index span { color: var(--accent); font-size: 1.2rem; vertical-align: super; letter-spacing: 0.1em; }
+
+  .lb-title {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 2rem;
+    font-weight: 300;
+    color: var(--white);
+    letter-spacing: 0.03em;
+    line-height: 1.2;
+  }
+
+  .lb-category {
+    font-size: 0.62rem;
+    letter-spacing: 0.25em;
+    color: var(--accent);
+    text-transform: uppercase;
+  }
+
+  .lb-desc {
+    font-size: 0.72rem;
+    line-height: 1.9;
+    color: var(--muted);
+    letter-spacing: 0.05em;
+  }
+
+  .lb-divider {
+    width: 40px; height: 1px;
+    background: var(--border);
+  }
+
+  /* Filters panel in lightbox */
+  .lb-filters {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  .lb-filter-label {
+    font-size: 0.58rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 0.5rem;
+  }
+  .filter-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+  }
+  .filter-pill {
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    font-family: 'Courier Prime', monospace;
+    font-size: 0.6rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    padding: 0.3rem 0.8rem;
+    cursor: none;
+    transition: all 0.25s;
+  }
+  .filter-pill:hover, .filter-pill.active {
+    border-color: var(--accent2);
+    color: var(--accent2);
+    background: rgba(126,184,160,0.07);
+  }
+
+  /* Nav buttons */
+  .lb-nav {
+    position: absolute;
+    top: 50%; transform: translateY(-50%);
+    z-index: 2;
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--text);
+    width: 48px; height: 48px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: none;
+    transition: all 0.3s var(--transition);
+    font-size: 1.2rem;
+  }
+  .lb-nav:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: rgba(200,169,110,0.08);
+  }
+  .lb-prev { left: 0.5rem; }
+  .lb-next { right: 0.5rem; }
+
+  .lb-close {
+    position: absolute;
+    top: 1.5rem; right: 2rem;
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--text);
+    width: 42px; height: 42px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: none;
+    font-size: 1rem;
+    transition: all 0.3s;
+    z-index: 2;
+  }
+  .lb-close:hover { border-color: #a06060; color: #c07070; }
+
+  /* Strip thumbnails */
+  .lb-strip {
+    position: absolute;
+    bottom: 1.5rem; left: 50%; transform: translateX(-50%);
+    display: flex;
+    gap: 4px;
+    z-index: 2;
+  }
+  .lb-thumb {
+    width: 48px; height: 32px;
+    object-fit: cover;
+    opacity: 0.3;
+    cursor: none;
+    border: 1px solid transparent;
+    transition: all 0.25s;
+    filter: saturate(0.3);
+  }
+  .lb-thumb:hover { opacity: 0.6; filter: saturate(0.8); }
+  .lb-thumb.active { opacity: 1; border-color: var(--accent); filter: saturate(1); }
+
+  /* Loading state */
+  .lb-img-wrap::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: var(--surface);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s;
+  }
+  .lb-img-wrap.loading::after { opacity: 1; }
+
+  /* Responsive */
+  @media (max-width: 1100px) {
+    .gallery-grid { grid-template-columns: repeat(3, 1fr); }
+    .lb-side { width: 220px; }
+  }
+  @media (max-width: 800px) {
+    header { padding: 1.5rem 1.5rem 1rem; }
+    .logo { font-size: 1.8rem; }
+    .filter-bar { padding: 1rem 1.5rem; }
+    .gallery-wrap { padding: 1.5rem; }
+    .gallery-grid { grid-template-columns: repeat(2, 1fr); }
+    .gallery-item.featured { grid-column: span 2; }
+    .lb-content { flex-direction: column; padding: 4rem 1.5rem 5rem; gap: 1.5rem; }
+    .lb-side { width: 100%; padding-left: 0; padding-top: 1rem; flex-direction: row; flex-wrap: wrap; gap: 1rem; }
+    .lb-index { display: none; }
+    .lb-strip { display: none; }
+  }
+  @media (max-width: 480px) {
+    .gallery-grid { grid-template-columns: 1fr 1fr; gap: 2px; }
+    .gallery-item.featured { grid-column: span 2; }
+  }
+
+  /* Noise texture overlay */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='1'/%3E%3C/svg%3E");
+    opacity: 0.03;
+    pointer-events: none;
+    z-index: 9997;
+  }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border); }
+
+  /* Stagger animation */
+  .gallery-item:nth-child(1) { animation-delay: 0.0s; }
+  .gallery-item:nth-child(2) { animation-delay: 0.05s; }
+  .gallery-item:nth-child(3) { animation-delay: 0.1s; }
+  .gallery-item:nth-child(4) { animation-delay: 0.15s; }
+  .gallery-item:nth-child(5) { animation-delay: 0.2s; }
+  .gallery-item:nth-child(6) { animation-delay: 0.25s; }
+  .gallery-item:nth-child(7) { animation-delay: 0.3s; }
+  .gallery-item:nth-child(8) { animation-delay: 0.35s; }
+  .gallery-item:nth-child(9) { animation-delay: 0.4s; }
+  .gallery-item:nth-child(10) { animation-delay: 0.45s; }
+  .gallery-item:nth-child(11) { animation-delay: 0.5s; }
+  .gallery-item:nth-child(12) { animation-delay: 0.55s; }
+
+  .no-results {
+    grid-column: 1/-1;
+    text-align: center;
+    padding: 6rem 2rem;
+    color: var(--muted);
+    font-size: 0.7rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+  }
+</style>
+</head>
+<body>
+
+<div class="cursor" id="cursor"></div>
+<div class="cursor-ring" id="cursorRing"></div>
+
+<header>
+  <div class="logo">LUM<span>I</span>NA</div>
+  <div class="header-meta">
+    Visual Archive<br>
+    Est. MMXXV
+  </div>
+</header>
+
+<div class="filter-bar">
+  <span class="filter-label">Filter by —</span>
+  <button class="filter-btn active" data-filter="all">All Works</button>
+  <button class="filter-btn" data-filter="nature">Nature</button>
+  <button class="filter-btn" data-filter="urban">Urban</button>
+  <button class="filter-btn" data-filter="portrait">Portrait</button>
+  <button class="filter-btn" data-filter="abstract">Abstract</button>
+  <button class="filter-btn" data-filter="travel">Travel</button>
+</div>
+
+<div class="gallery-wrap">
+  <div class="gallery-stats">
+    <span class="count-text" id="countText">12 images</span>
+    <div class="view-toggle">
+      <button class="view-btn active" id="gridViewBtn" title="Grid view">▦</button>
+      <button class="view-btn" id="listViewBtn" title="List view">≡</button>
+    </div>
+  </div>
+
+  <div class="gallery-grid" id="galleryGrid">
+
+    <div class="gallery-item featured" data-category="nature" data-index="0" data-title="Mountain Serenity" data-desc="High alpine meadows where silence becomes tangible and time loses its urgency. Captured at dawn, f/8, 1/250s.">
+      <img src="https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=900&q=80" alt="Mountain Serenity" loading="lazy">
+      <div class="item-num">01</div>
+      <div class="item-category-tag">Nature</div>
+      <div class="item-overlay">
+        <div class="item-title">Mountain Serenity</div>
+        <div class="item-meta">Nature · 2025</div>
+      </div>
+    </div>
+
+    <div class="gallery-item" data-category="urban" data-index="1" data-title="Neon Drift" data-desc="The city breathes differently at 2am. Reflections multiply across wet asphalt, creating a second geometry below the one we know.">
+      <img src="https://images.unsplash.com/photo-1477959858617-67f85cf4f1df?w=600&q=80" alt="Neon Drift" loading="lazy">
+      <div class="item-num">02</div>
+      <div class="item-category-tag">Urban</div>
+      <div class="item-overlay">
+        <div class="item-title">Neon Drift</div>
+        <div class="item-meta">Urban · 2025</div>
+      </div>
+    </div>
+
+    <div class="gallery-item" data-category="portrait" data-index="2" data-title="Golden Hour" data-desc="Natural light at its most generous hour. The subject, unaware of the camera, exists in a private moment of contemplation.">
+      <img src="https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?w=600&q=80" alt="Golden Hour" loading="lazy">
+      <div class="item-num">03</div>
+      <div class="item-category-tag">Portrait</div>
+      <div class="item-overlay">
+        <div class="item-title">Golden Hour</div>
+        <div class="item-meta">Portrait · 2025</div>
+      </div>
+    </div>
+
+    <div class="gallery-item" data-category="abstract" data-index="3" data-title="Liquid Form" data-desc="Material pushed to its expressive limit. Pigment suspended in motion, caught before it resolves into stillness.">
+      <img src="https://images.unsplash.com/photo-1541701494587-cb58502866ab?w=600&q=80" alt="Liquid Form" loading="lazy">
+      <div class="item-num">04</div>
+      <div class="item-category-tag">Abstract</div>
+      <div class="item-overlay">
+        <div class="item-title">Liquid Form</div>
+        <div class="item-meta">Abstract · 2025</div>
+      </div>
+    </div>
+
+    <div class="gallery-item" data-category="travel" data-index="4" data-title="Ancient Passage" data-desc="Stone corridors worn smooth by centuries of footfall. Architecture as collective memory, each mark a timestamp.">
+      <img src="https://images.unsplash.com/photo-1500964757637-c85e8a162699?w=600&q=80" alt="Ancient Passage" loading="lazy">
+      <div class="item-num">05</div>
+      <div class="item-category-tag">Travel</div>
+      <div class="item-overlay">
+        <div class="item-title">Ancient Passage</div>
+        <div class="item-meta">Travel · 2025</div>
+      </div>
+    </div>
+
+    <div class="gallery-item" data-category="nature" data-index="5" data-title="Forest Mist" data-desc="Where woodland meets weather. Morning fog softens the hard geometry of trunks into something painterly and uncertain.">
+      <img src="https://images.unsplash.com/photo-1448375240586-882707db888b?w=600&q=80" alt="Forest Mist" loading="lazy">
+      <div class="item-num">06</div>
+      <div class="item-category-tag">Nature</div>
+      <div class="item-overlay">
+        <div class="item-title">Forest Mist</div>
+        <div class="item-meta">Nature · 2025</div>
+      </div>
+    </div>
+
+    <div class="gallery-item" data-category="urban" data-index="6" data-title="Glass Cathedral" data-desc="Contemporary architecture reaching for a secular transcendence. Steel and glass replace stone and stain. The sky, always present.">
+      <img src="https://images.unsplash.com/photo-1486325212027-8081e485255e?w=600&q=80" alt="Glass Cathedral" loading="lazy">
+      <div class="item-num">07</div>
+      <div class="item-category-tag">Urban</div>
+      <div class="item-overlay">
+        <div class="item-title">Glass Cathedral</div>
+        <div class="item-meta">Urban · 2025</div>
+      </div>
+    </div>
+
+    <div class="gallery-item" data-category="portrait" data-index="7" data-title="The Observer" data-desc="A gaze that holds its own history. The portrait as a meeting point between interior life and the eye of a stranger.">
+      <img src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=600&q=80" alt="The Observer" loading="lazy">
+      <div class="item-num">08</div>
+      <div class="item-category-tag">Portrait</div>
+      <div class="item-overlay">
+        <div class="item-title">The Observer</div>
+        <div class="item-meta">Portrait · 2025</div>
+      </div>
+    </div>
+
+    <div class="gallery-item" data-category="abstract" data-index="8" data-title="Chromatic Field" data-desc="Color freed from representation. The field becomes its own subject — a study in saturation, edge, and the physics of light.">
+      <img src="https://images.unsplash.com/photo-1557672172-298e090bd0f1?w=600&q=80" alt="Chromatic Field" loading="lazy">
+      <div class="item-num">09</div>
+      <div class="item-category-tag">Abstract</div>
+      <div class="item-overlay">
+        <div class="item-title">Chromatic Field</div>
+        <div class="item-meta">Abstract · 2025</div>
+      </div>
+    </div>
+
+    <div class="gallery-item" data-category="travel" data-index="9" data-title="Salt Flats at Dusk" data-desc="The horizon dissolves in both directions. Water and sky exchange identities. The traveler becomes a silhouette in an infinite plane.">
+      <img src="https://images.unsplash.com/photo-1547483238-f400e65ccd56?w=600&q=80" alt="Salt Flats at Dusk" loading="lazy">
+      <div class="item-num">10</div>
+      <div class="item-category-tag">Travel</div>
+      <div class="item-overlay">
+        <div class="item-title">Salt Flats at Dusk</div>
+        <div class="item-meta">Travel · 2025</div>
+      </div>
+    </div>
+
+    <div class="gallery-item" data-category="nature" data-index="10" data-title="Wave Break" data-desc="Water at its most elemental — neither liquid nor solid in that suspended instant. Foam writes its brief calligraphy and vanishes.">
+      <img src="https://images.unsplash.com/photo-1505118380757-91f5f5632de0?w=600&q=80" alt="Wave Break" loading="lazy">
+      <div class="item-num">11</div>
+      <div class="item-category-tag">Nature</div>
+      <div class="item-overlay">
+        <div class="item-title">Wave Break</div>
+        <div class="item-meta">Nature · 2025</div>
+      </div>
+    </div>
+
+    <div class="gallery-item" data-category="urban" data-index="11" data-title="Underpass" data-desc="Infrastructure as accidental poetry. The repetition of supports creates rhythm; light leaks in and becomes something worth photographing.">
+      <img src="https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=600&q=80" alt="Underpass" loading="lazy">
+      <div class="item-num">12</div>
+      <div class="item-category-tag">Urban</div>
+      <div class="item-overlay">
+        <div class="item-title">Underpass</div>
+        <div class="item-meta">Urban · 2025</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Lightbox -->
+<div class="lightbox" id="lightbox" role="dialog" aria-modal="true">
+  <div class="lb-backdrop" id="lbBackdrop"></div>
+
+  <button class="lb-close" id="lbClose" aria-label="Close">✕</button>
+
+  <div class="lb-content">
+    <div class="lb-main">
+      <button class="lb-nav lb-prev" id="lbPrev" aria-label="Previous">←</button>
+      <div class="lb-img-wrap" id="lbImgWrap">
+        <img id="lbImg" src="" alt="">
+      </div>
+      <button class="lb-nav lb-next" id="lbNext" aria-label="Next">→</button>
+    </div>
+
+    <div class="lb-side">
+      <div class="lb-index" id="lbIndex">01<span> / 12</span></div>
+      <div>
+        <div class="lb-category" id="lbCat">Category</div>
+        <div class="lb-title" id="lbTitle">Image Title</div>
+      </div>
+      <div class="lb-divider"></div>
+      <div class="lb-desc" id="lbDesc">Description text.</div>
+
+      <div class="lb-filters">
+        <div class="lb-filter-label">Image Filters —</div>
+        <div class="filter-pills">
+          <button class="filter-pill active" data-imgfilter="none">Original</button>
+          <button class="filter-pill" data-imgfilter="grayscale(100%)">B&W</button>
+          <button class="filter-pill" data-imgfilter="sepia(80%)">Sepia</button>
+          <button class="filter-pill" data-imgfilter="contrast(130%) saturate(140%)">Vivid</button>
+          <button class="filter-pill" data-imgfilter="hue-rotate(180deg) saturate(120%)">Invert HUE</button>
+          <button class="filter-pill" data-imgfilter="contrast(90%) brightness(110%) saturate(0%) sepia(30%)">Matte</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="lb-strip" id="lbStrip"></div>
+</div>
+
+<script>
+  // --- Cursor ---
+  const cursor = document.getElementById('cursor');
+  const ring = document.getElementById('cursorRing');
+  let rx = 0, ry = 0, mx = 0, my = 0;
+
+  document.addEventListener('mousemove', e => {
+    mx = e.clientX; my = e.clientY;
+    cursor.style.left = mx + 'px';
+    cursor.style.top = my + 'px';
+  });
+
+  function animateRing() {
+    rx += (mx - rx) * 0.12;
+    ry += (my - ry) * 0.12;
+    ring.style.left = rx + 'px';
+    ring.style.top = ry + 'px';
+    requestAnimationFrame(animateRing);
+  }
+  animateRing();
+
+  document.querySelectorAll('button, .gallery-item').forEach(el => {
+    el.addEventListener('mouseenter', () => { cursor.classList.add('hover'); ring.classList.add('hover'); });
+    el.addEventListener('mouseleave', () => { cursor.classList.remove('hover'); ring.classList.remove('hover'); });
+  });
+
+  // --- Gallery data (mirror from DOM) ---
+  const items = Array.from(document.querySelectorAll('.gallery-item'));
+  let visibleItems = [...items];
+  let currentFilter = 'all';
+
+  // --- Filter ---
+  document.querySelectorAll('.filter-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      currentFilter = btn.dataset.filter;
+      applyFilter(currentFilter);
+    });
+  });
+
+  function applyFilter(cat) {
+    visibleItems = [];
+    let count = 0;
+    items.forEach((item, i) => {
+      const match = cat === 'all' || item.dataset.category === cat;
+      if (match) {
+        item.classList.remove('hidden');
+        item.style.animationDelay = (visibleItems.length * 0.05) + 's';
+        item.style.animation = 'none';
+        requestAnimationFrame(() => { item.style.animation = ''; });
+        visibleItems.push(item);
+        count++;
+      } else {
+        item.classList.add('hidden');
+      }
+    });
+    document.getElementById('countText').textContent = count + ' image' + (count !== 1 ? 's' : '');
+    updateStrip();
+  }
+
+  // --- View toggle ---
+  const grid = document.getElementById('galleryGrid');
+  document.getElementById('gridViewBtn').addEventListener('click', function() {
+    grid.classList.remove('list-view');
+    this.classList.add('active');
+    document.getElementById('listViewBtn').classList.remove('active');
+  });
+  document.getElementById('listViewBtn').addEventListener('click', function() {
+    grid.classList.add('list-view');
+    this.classList.add('active');
+    document.getElementById('gridViewBtn').classList.remove('active');
+  });
+
+  // --- Lightbox ---
+  const lightbox = document.getElementById('lightbox');
+  const lbImg = document.getElementById('lbImg');
+  const lbTitle = document.getElementById('lbTitle');
+  const lbCat = document.getElementById('lbCat');
+  const lbDesc = document.getElementById('lbDesc');
+  const lbIndex = document.getElementById('lbIndex');
+  const lbImgWrap = document.getElementById('lbImgWrap');
+  let currentLbIndex = 0;
+  let activeImgFilter = 'none';
+
+  items.forEach((item, i) => {
+    item.addEventListener('click', () => {
+      const vIdx = visibleItems.indexOf(item);
+      openLightbox(vIdx >= 0 ? vIdx : 0);
+    });
+  });
+
+  function openLightbox(idx) {
+    currentLbIndex = idx;
+    lightbox.classList.add('open');
+    document.body.style.overflow = 'hidden';
+    showImage(idx);
+    updateStrip();
+    resetImgFilter();
+  }
+
+  function closeLightbox() {
+    lightbox.classList.remove('open');
+    document.body.style.overflow = '';
+  }
+
+  function showImage(idx) {
+    if (idx < 0 || idx >= visibleItems.length) return;
+    const item = visibleItems[idx];
+    lbImgWrap.classList.add('loading');
+    const src = item.querySelector('img').src.replace('w=600', 'w=1200').replace('w=900', 'w=1400');
+    const tmpImg = new Image();
+    tmpImg.onload = () => {
+      lbImg.src = src;
+      lbImgWrap.classList.remove('loading');
+      lbImg.style.filter = activeImgFilter === 'none' ? '' : activeImgFilter;
+    };
+    tmpImg.src = src;
+    lbTitle.textContent = item.dataset.title;
+    lbCat.textContent = item.dataset.category.charAt(0).toUpperCase() + item.dataset.category.slice(1);
+    lbDesc.textContent = item.dataset.desc;
+    lbIndex.innerHTML = String(idx + 1).padStart(2, '0') + '<span> / ' + visibleItems.length + '</span>';
+    updateStripActive(idx);
+  }
+
+  function updateStrip() {
+    const strip = document.getElementById('lbStrip');
+    strip.innerHTML = '';
+    visibleItems.forEach((item, i) => {
+      const thumb = document.createElement('img');
+      thumb.className = 'lb-thumb' + (i === currentLbIndex ? ' active' : '');
+      thumb.src = item.querySelector('img').src;
+      thumb.alt = item.dataset.title;
+      thumb.addEventListener('click', () => { currentLbIndex = i; showImage(i); });
+      strip.appendChild(thumb);
+    });
+  }
+
+  function updateStripActive(idx) {
+    document.querySelectorAll('.lb-thumb').forEach((t, i) => {
+      t.classList.toggle('active', i === idx);
+    });
+  }
+
+  document.getElementById('lbClose').addEventListener('click', closeLightbox);
+  document.getElementById('lbBackdrop').addEventListener('click', closeLightbox);
+
+  document.getElementById('lbPrev').addEventListener('click', () => {
+    currentLbIndex = (currentLbIndex - 1 + visibleItems.length) % visibleItems.length;
+    showImage(currentLbIndex);
+  });
+  document.getElementById('lbNext').addEventListener('click', () => {
+    currentLbIndex = (currentLbIndex + 1) % visibleItems.length;
+    showImage(currentLbIndex);
+  });
+
+  document.addEventListener('keydown', e => {
+    if (!lightbox.classList.contains('open')) return;
+    if (e.key === 'Escape') closeLightbox();
+    if (e.key === 'ArrowLeft') { currentLbIndex = (currentLbIndex - 1 + visibleItems.length) % visibleItems.length; showImage(currentLbIndex); }
+    if (e.key === 'ArrowRight') { currentLbIndex = (currentLbIndex + 1) % visibleItems.length; showImage(currentLbIndex); }
+  });
+
+  // --- Image filters ---
+  document.querySelectorAll('.filter-pill').forEach(pill => {
+    pill.addEventListener('click', () => {
+      document.querySelectorAll('.filter-pill').forEach(p => p.classList.remove('active'));
+      pill.classList.add('active');
+      activeImgFilter = pill.dataset.imgfilter;
+      lbImg.style.filter = activeImgFilter === 'none' ? '' : activeImgFilter;
+    });
+  });
+
+  function resetImgFilter() {
+    activeImgFilter = 'none';
+    lbImg.style.filter = '';
+    document.querySelectorAll('.filter-pill').forEach(p => p.classList.remove('active'));
+    document.querySelector('.filter-pill[data-imgfilter="none"]').classList.add('active');
+  }
+
+  // Touch swipe support
+  let touchStartX = 0;
+  lightbox.addEventListener('touchstart', e => { touchStartX = e.touches[0].clientX; });
+  lightbox.addEventListener('touchend', e => {
+    const dx = e.changedTouches[0].clientX - touchStartX;
+    if (Math.abs(dx) > 50) {
+      if (dx < 0) { currentLbIndex = (currentLbIndex + 1) % visibleItems.length; }
+      else { currentLbIndex = (currentLbIndex - 1 + visibleItems.length) % visibleItems.length; }
+      showImage(currentLbIndex);
+    }
+  });
+
+  // Mobile: show system cursor
+  if ('ontouchstart' in window) { document.body.style.cursor = 'auto'; cursor.style.display = 'none'; ring.style.display = 'none'; }
+</script>
+</body>
+</html>
