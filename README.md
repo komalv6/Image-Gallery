@@ -1,4 +1,5 @@
 **LUMINA**
+
 LUMINA is a modern, immersive image gallery built using HTML, CSS, and Vanilla JavaScript. 
 It combines elegant design with smooth animations and interactive features to create a premium visual browsing experience.
 
@@ -24,17 +25,27 @@ Custom Animated Cursor
 Smooth Animations & Transitions
 
 _**Tech Stack**_
+
 HTML5
+
 CSS3
+
   -Flexbox
+  
   -Grid
+  
   -CSS Variables
+  
   -Animations
+  
 JavaScript (Vanilla)
+
   -DOM Manipulation
+  
   -Event Handling
 
 _**Project Structure**_
+
 LUMINA-Image-Gallery/
 │
 ├── index.html      # Main gallery file
@@ -52,6 +63,7 @@ It can be used as:
   -Preview
 
 _**License**_
+
 This project is licensed under the MIT License.
 
 _**Author**_
